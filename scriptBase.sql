@@ -8,6 +8,9 @@
 -- reporte comisiones para asesores
 -- transferencia 
 -- cambiomoneda
+-- pago prestamo ordinario cliente
+-- funcion modificarcalendario
+-- pago prestamo extraordianrio cliente
 
 
 
@@ -220,7 +223,8 @@ CREATE TABLE public."TARJETA"
 (
     "CodigoSeg" character(3) COLLATE pg_catalog."default" NOT NULL,
     "FechaExp" date NOT NULL,
-    "Saldo" money DEFAULT 0,
+    "SaldoOrig" money DEFAULT 0,
+	"SaldoActual" money DEFAULT 0,
     "Tipo" character varying(7) COLLATE pg_catalog."default" NOT NULL,
     "NumCuenta" integer NOT NULL,
     "Estado" "char" NOT NULL DEFAULT 'A'::"char",
@@ -230,7 +234,8 @@ CREATE TABLE public."TARJETA"
         REFERENCES public."CUENTA" ("NumCuenta") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
-    CONSTRAINT "SaldoConstraint" CHECK ("Saldo" >= 0::money) NOT VALID,
+    CONSTRAINT "SaldoOrigConstraint" CHECK ("SaldoOrig" >= 0::money) NOT VALID,
+	CONSTRAINT "SaldoActualConstraint" CHECK ("SaldoActual" >= 0::money) NOT VALID,
     CONSTRAINT "TipoConstraint" CHECK ("Tipo"::text = 'Credito'::text OR "Tipo"::text = 'Debito'::text) NOT VALID,
     CONSTRAINT "EstadoConstraint" CHECK ("Estado" = 'A'::"char" OR "Estado" = 'I'::"char") NOT VALID
 )
@@ -342,12 +347,15 @@ CREATE TABLE public."COMPRA"
     "Comercio" character varying(20) COLLATE pg_catalog."default" NOT NULL,
     "Monto" money NOT NULL,
     "Moneda" character varying(7) COLLATE pg_catalog."default" NOT NULL DEFAULT 'Colones'::character varying,
-	"ID" SERIAL PRIMARY KEY,
-	"Estado" "char" NOT NULL DEFAULT 'A'::"char",
+    "ID" SERIAL NOT NULL,
+    "Estado" "char" NOT NULL DEFAULT 'A'::"char",
+    "Fecha" date NOT NULL,
+    CONSTRAINT "COMPRA_pkey" PRIMARY KEY ("ID"),
     CONSTRAINT "TarjetaConstraint" FOREIGN KEY ("NumTarjeta")
         REFERENCES public."TARJETA" ("Numero") MATCH SIMPLE
         ON UPDATE NO ACTION
-        ON DELETE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT "Estado" CHECK ("Estado" = 'A'::"char" OR "Estado" = 'I'::"char") NOT VALID
 )
 WITH (
     OIDS = FALSE
