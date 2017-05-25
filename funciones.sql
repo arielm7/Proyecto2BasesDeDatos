@@ -720,3 +720,93 @@ $function$;
 
 ALTER FUNCTION public.pagoprestamoextraordinariocliente(integer, integer, numeric)
     OWNER TO postgres;
+    
+    
+     
+-- FUNCTION: public.pagotarjeta(integer, numeric)
+
+-- DROP FUNCTION public.pagotarjeta(integer, numeric);
+
+CREATE OR REPLACE FUNCTION public.pagotarjeta(
+	tarjeta integer,
+	pago numeric)
+    RETURNS character varying
+    LANGUAGE 'plpgsql'
+    COST 100.0
+    VOLATILE 
+AS $function$
+
+declare
+datosTarjeta "TARJETA"%ROWTYPE;
+fecha date;
+cambioemisora money;
+monto money;
+plata money;
+saldo money;
+begin
+if monto<=0 then 
+	return 'monto incorrecto para el pago';
+end if;
+
+select * into datosTarjeta from "TARJETA" where "Numero"=tarjeta and "Estado"='A';
+if not found then
+	return 'no existe la tarjeta indicada';
+end if;
+if (not(datosTarjeta."Tipo"='Credito')) then
+	return 'tipo de tarjeta no permite pagos';
+end if;
+if (datosTarjeta."SaldoOrig"=datosTarjeta."SaldoActual") then
+	return 'la tarjeta no tiene ninguna deuda';
+end if;
+if (not(select "Estado" from "CUENTA" where "NumCuenta"=(datosTarjeta."NumCuenta"))='A') then
+return 'Cuenta está inactiva';
+end if;
+begin
+fecha=current_date;
+plata=pago::money;
+cambioemisora= (select "Saldo" from "CUENTA" where "NumCuenta"=cuenta)-plata;
+if cambioemisora<0::money then
+return 'no hay dinero suficiente en la cuenta';
+end if;
+saldo=((datosTarjeta."SaldoActual")+plata);    
+    
+if saldo>= datosTarjeta."SaldoOrig" then
+        
+      UPDATE public."CUENTA"
+        SET "Saldo"=(select "Saldo" from "CUENTA" where "NumCuenta"=cuenta)-(datosTarjeta."SaldoOrig"-datosTarjeta."SaldoActual")
+        WHERE "Numero"=tarjeta;
+    
+    UPDATE public."TARJETA"
+        SET "SaldoActual"="SaldoOrig"
+        WHERE "Numero"=tarjeta; 
+    
+	INSERT INTO public."CANCELAR_TARJETA"(
+	"Monto", "Fecha", "NumTarjeta")
+	VALUES ((datosTarjeta."SaldoOrig"-datosTarjeta."SaldoActual"), fecha, tarjeta);         
+else
+UPDATE public."CUENTA"
+	SET "Saldo"=cambioemisora
+	WHERE "NumCuenta"=datosTarjeta."NumCuenta";     
+UPDATE public."TARJETA"
+        SET "SaldoActual"=saldo
+        WHERE "Numero"=tarjeta; 
+
+    
+INSERT INTO public."CANCELAR_TARJETA"(
+	"Monto", "Fecha", "NumTarjeta")
+	VALUES (plata, fecha, tarjeta);    
+end if;
+    
+exception when others then
+	return 'error';
+
+end;
+return 'ok';
+end; 
+
+$function$;
+
+ALTER FUNCTION public.pagotarjeta(integer, numeric)
+    OWNER TO postgres;   
+    
+    
