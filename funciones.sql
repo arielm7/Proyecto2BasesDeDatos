@@ -809,4 +809,57 @@ $function$;
 ALTER FUNCTION public.pagotarjeta(integer, numeric)
     OWNER TO postgres;   
     
-    
+-- FUNCTION: public.realizarmovimiento(character varying, character varying, numeric, integer)
+
+-- DROP FUNCTION public.realizarmovimiento(character varying, character varying, numeric, integer);
+
+
+CREATE OR REPLACE FUNCTION public.realizarmovimiento(
+	tipo character varying,
+	moneda character varying,
+	monto numeric,
+	numcuenta integer)
+    RETURNS character varying
+    LANGUAGE 'plpgsql'
+    COST 100.0
+    VOLATILE 
+AS $function$
+
+declare
+fecha date;
+montocuenta money;
+monedacuenta character varying;
+begin
+
+if not exists (select * from "CUENTA" where "NumCuenta"=numcuenta and "Estado"='A') then
+	return 'no existe la cuenta';
+end if;
+fecha= current_date;
+montocuenta=(select "Saldo" from "CUENTA" where "NumCuenta"=numcuenta)::money;
+monedacuenta=(select "Moneda" from "CUENTA" where "NumCuenta"=numcuenta)::character varying;
+if (moneda!=monedacuenta) then
+	monto = cambiomoneda(monto::numeric, moneda, monedacuenta);
+end if;
+if tipo='Retiro' then
+	if monto::money>montocuenta then
+		return 'No tiene fondos suficientes';
+	else
+		UPDATE public."CUENTA"
+			SET "Saldo"="Saldo"-monto::money
+			WHERE "NumCuenta"=numcuenta;
+	end if;
+else
+	UPDATE public."CUENTA"
+		SET "Saldo"="Saldo"+monto::money
+		WHERE "NumCuenta"=numcuenta;
+end if;
+INSERT INTO "MOVIMIENTO"
+	("Tipo", "Fecha", "Monto", "NumCuenta", "Moneda")
+	VALUES (tipo, fecha, monto, numcuenta, moneda);
+return 'Transaccion realizada correctamente';
+end; 
+
+$function$;
+
+ALTER FUNCTION public.realizarmovimiento(character varying, character varying, numeric, integer)
+    OWNER TO postgres;     
