@@ -1,5 +1,7 @@
 
 
+
+
 -- funciones hechas:
 -- ingresarusuario y modificarusuario
 -- pmt y calendario pagos 
@@ -10,7 +12,11 @@
 -- cambiomoneda
 -- pago prestamo ordinario cliente
 -- funcion modificarcalendario
--- pago prestamo extraordianrio cliente
+-- pago prestamo extraordinario cliente
+-- realizar movimiento (deposito o retiro)
+-- pago prestamo extraordinario para administrador
+-- pago prestamo ordinario administrador
+-- pago tarjetas
 
 
 
@@ -182,7 +188,7 @@ CREATE TABLE public."PAGO"
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT "EstadoConstraint" CHECK ("Estado"::text = 'Pagado'::text OR "Estado"::text = 'Pendiente'::text) NOT VALID,
-    CONSTRAINT "MontoConstraint" CHECK ("Monto" > 0::money) NOT VALID,
+    CONSTRAINT "MontoConstraint" CHECK ("Monto" >= 0::money) NOT VALID,
     CONSTRAINT "InteresConstraint" CHECK ("MontoInteres" >= 0::money) NOT VALID,
     CONSTRAINT "PagosConstraint" CHECK ("PagosRestantes" >= 1) NOT VALID,
     CONSTRAINT "ExtraordinarioConstraint" CHECK ("Extraordinario" >= 0::money) NOT VALID
